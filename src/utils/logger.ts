@@ -2,6 +2,8 @@
  * Simple logger utility with consistent formatting
  */
 
+import { ethers } from 'ethers';
+
 export enum LogLevel {
   INFO = 'INFO',
   SUCCESS = 'SUCCESS',
@@ -90,6 +92,3 @@ export function formatAPY(rayRate: bigint): string {
   const apy = (rayRate * SECONDS_PER_YEAR * 10000n) / RAY / 100n;
   return (Number(apy) / 100).toFixed(2) + '%';
 }
-
-// Export ethers for MaxUint256
-import { ethers } from 'ethers';

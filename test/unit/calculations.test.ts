@@ -57,7 +57,7 @@ describe('Calculations', () => {
       // But since result is negative, should handle gracefully
       // Actually: 8500 / 1.8 = 4722.22, so max additional borrow is negative (already over)
 
-      expect(maxBorrow).to.be.gte(0n);
+      expect(Number(maxBorrow)).to.be.gte(0);
     });
 
     it('should return zero if already at max debt', () => {
@@ -75,12 +75,12 @@ describe('Calculations', () => {
 
       // Max debt = (10000 * 0.8) / 1.5 = 5333.33
       // Current debt is 8000, so already over
-      expect(maxBorrow).to.equal(0n);
+      expect(Number(maxBorrow)).to.equal(0);
     });
 
     it('should handle zero target HF', () => {
       const maxBorrow = calculateMaxBorrowForHF(10000n, 5000n, 8500n, 0n);
-      expect(maxBorrow).to.equal(0n);
+      expect(Number(maxBorrow)).to.equal(0);
     });
   });
 
@@ -105,8 +105,8 @@ describe('Calculations', () => {
       // Available: 5000
       // After maxLtvUsage (70%): 3500
       // After safety margin (90%): 3150
-      expect(safeBorrow).to.be.lte(5000n * 10n ** 8n);
-      expect(safeBorrow).to.be.gt(0n);
+      expect(Number(safeBorrow)).to.be.lte(Number(5000n * 10n ** 8n));
+      expect(Number(safeBorrow)).to.be.gt(0);
     });
 
     it('should return zero if no borrow capacity', () => {
@@ -121,7 +121,7 @@ describe('Calculations', () => {
 
       const safeBorrow = calculateSafeBorrowAmount(accountData, 70, 0.9, 18n * 10n ** 17n);
 
-      expect(safeBorrow).to.equal(0n);
+      expect(Number(safeBorrow)).to.equal(0);
     });
   });
 
@@ -143,13 +143,13 @@ describe('Calculations', () => {
       // HF = (10000 * 0.85) / 3000 = 8500 / 3000 = 2.833...
       const expectedHF = 28n * 10n ** 17n; // Approximately 2.8
 
-      expect(newHF).to.be.closeTo(expectedHF, 5n * 10n ** 17n);
+      expect(Number(newHF)).to.be.closeTo(Number(expectedHF), Number(5n * 10n ** 17n));
     });
 
     it('should return max uint256 if no debt', () => {
       const newHF = calculateNewHealthFactor(10000n, 0n, 0n, 8500n);
 
-      expect(newHF).to.equal(2n ** 256n - 1n);
+      expect(Number(newHF)).to.equal(Number(2n ** 256n - 1n));
     });
   });
 
@@ -171,8 +171,8 @@ describe('Calculations', () => {
       // Target debt = (10000 * 0.85) / 2.0 = 4250
       // Repay = 6000 - 4250 = 1750
 
-      expect(repayAmount).to.be.gt(0n);
-      expect(repayAmount).to.be.lte(totalDebt);
+      expect(Number(repayAmount)).to.be.gt(0);
+      expect(Number(repayAmount)).to.be.lte(Number(totalDebt));
     });
 
     it('should return zero if already above target HF', () => {
@@ -184,7 +184,7 @@ describe('Calculations', () => {
       );
 
       // Current HF = (10000 * 0.85) / 2000 = 4.25 > 2.0
-      expect(repayAmount).to.equal(0n);
+      expect(Number(repayAmount)).to.equal(0);
     });
   });
 

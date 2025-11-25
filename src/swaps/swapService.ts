@@ -6,6 +6,7 @@
 
 import { ethers } from 'ethers';
 import { getUniswapV3RouterContract, ensureTokenApproval } from '../infrastructure/contracts';
+import { getSignerAddress } from '../infrastructure/provider';
 import { logger, formatAmount } from '../utils/logger';
 
 // Uniswap v3 fee tiers (in hundredths of a bps)
@@ -77,12 +78,13 @@ export async function swapTokens(params: SwapParams, dryRun: boolean = false): P
 
   // Prepare swap parameters
   const deadlineTimestamp = Math.floor(Date.now() / 1000) + deadline;
+  const recipientAddress = await getSignerAddress();
 
   const swapParams = {
     tokenIn: fromAsset,
     tokenOut: toAsset,
     fee: feeTier,
-    recipient: await ethers.resolveAddress(await router.runner!.getAddress()),
+    recipient: recipientAddress,
     deadline: deadlineTimestamp,
     amountIn: amountIn,
     amountOutMinimum: minAmountOut,
@@ -97,7 +99,25 @@ export async function swapTokens(params: SwapParams, dryRun: boolean = false): P
   logger.success('Swap completed');
 
   // Parse the swap event to get actual amount out
-  // For simplicity, return the minimum amount (in production, parse events)
+  // Look for Transfer event to recipient on toAsset to get actual amount
+  if (receipt && receipt.logs) {
+    const transferTopic = ethers.id('Transfer(address,address,uint256)');
+
+    for (const log of receipt.logs) {
+      if (log.topics[0] === transferTopic && log.address.toLowerCase() === toAsset.toLowerCase()) {
+        // Check if recipient matches (topic[2] is the 'to' address)
+        const logRecipient = ethers.getAddress('0x' + log.topics[2].slice(26));
+        if (logRecipient.toLowerCase() === recipientAddress.toLowerCase()) {
+          const amountOut = BigInt(log.data);
+          logger.debug(`Actual amount received from swap: ${formatAmount(amountOut, 6, 2)}`);
+          return amountOut;
+        }
+      }
+    }
+  }
+
+  // Fallback: return minAmountOut if we couldn't parse the event
+  logger.warn('Could not parse swap event, returning minAmountOut');
   return minAmountOut;
 }
 

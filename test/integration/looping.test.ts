@@ -8,7 +8,8 @@
  */
 
 import { expect } from 'chai';
-import { ethers } from 'hardhat';
+import hre from 'hardhat';
+import { ethers } from 'ethers';
 import { loadStrategyConfig } from '../../config/strategy';
 import { openLoops, printStatus } from '../../src/strategy/loopingStrategy';
 import { getUserAccountData } from '../../src/aave/aaveService';
@@ -19,6 +20,16 @@ describe('Looping Strategy Integration Tests', () => {
   const USDC_WHALE = '0x4B16c5dE96EB2117bBE5fd171E4d203624B014aa'; // Aave treasury
   const INITIAL_AMOUNT = ethers.parseUnits('1000', 6); // 1000 USDC
 
+  // Helper to get signers from hardhat
+  async function getHardhatSigner(address: string) {
+    await hre.network.provider.request({
+      method: 'hardhat_impersonateAccount',
+      params: [address],
+    });
+    // @ts-ignore - hardhat ethers extension
+    return await hre.ethers.provider.getSigner(address);
+  }
+
   let userAddress: string;
 
   before(async () => {
@@ -28,15 +39,18 @@ describe('Looping Strategy Integration Tests', () => {
     // Fund test account with USDC from whale
     const usdcAddress = getTokenAddress('USDC');
 
-    // Impersonate whale
-    await ethers.provider.send('hardhat_impersonateAccount', [USDC_WHALE]);
-    const whaleSigner = await ethers.getSigner(USDC_WHALE);
+    // Impersonate whale and get signer
+    const whaleSigner = await getHardhatSigner(USDC_WHALE);
 
     // Transfer USDC to test account
-    const usdc = getTokenContract(usdcAddress, false).connect(whaleSigner);
-    await usdc.transfer(userAddress, INITIAL_AMOUNT);
+    const usdc = getTokenContract(usdcAddress, false).connect(whaleSigner) as any;
+    const transferTx = await usdc.transfer(userAddress, INITIAL_AMOUNT);
+    await transferTx.wait();
 
-    await ethers.provider.send('hardhat_stopImpersonatingAccount', [USDC_WHALE]);
+    await hre.network.provider.request({
+      method: 'hardhat_stopImpersonatingAccount',
+      params: [USDC_WHALE],
+    });
 
     console.log(`Test account ${userAddress} funded with 1000 USDC`);
   });
@@ -58,12 +72,12 @@ describe('Looping Strategy Integration Tests', () => {
       const usdc = getTokenContract(usdcAddress, false);
       const initialBalance = await usdc.balanceOf(userAddress);
 
-      expect(initialBalance).to.be.gte(INITIAL_AMOUNT);
+      expect(Number(initialBalance)).to.be.gte(Number(INITIAL_AMOUNT));
 
       // Check initial account data (should be zero)
       const initialAccountData = await getUserAccountData(userAddress);
-      expect(initialAccountData.totalCollateralBase).to.equal(0n);
-      expect(initialAccountData.totalDebtBase).to.equal(0n);
+      expect(Number(initialAccountData.totalCollateralBase)).to.equal(0);
+      expect(Number(initialAccountData.totalDebtBase)).to.equal(0);
 
       // Open loops with 500 USDC
       const depositAmount = ethers.parseUnits('500', 6);
@@ -77,13 +91,13 @@ describe('Looping Strategy Integration Tests', () => {
 
       // If loops were performed, check position
       if (result.loopsPerformed > 0) {
-        expect(result.totalCollateral).to.be.gt(0n);
-        expect(result.totalDebt).to.be.gt(0n);
-        expect(result.healthFactor).to.be.gte(BigInt(Math.floor(config.minHealthFactor * 1e18)));
+        expect(Number(result.totalCollateral)).to.be.gt(0);
+        expect(Number(result.totalDebt)).to.be.gt(0);
+        expect(Number(result.healthFactor)).to.be.gte(Number(BigInt(Math.floor(config.minHealthFactor * 1e18))));
 
         // Verify collateral increased (due to looping)
         const finalAccountData = await getUserAccountData(userAddress);
-        expect(finalAccountData.totalCollateralBase).to.be.gt(depositAmount * 10n ** 2n); // Adjusted for decimals
+        expect(Number(finalAccountData.totalCollateralBase)).to.be.gt(Number(depositAmount * 10n ** 2n)); // Adjusted for decimals
       }
     });
 
@@ -94,7 +108,7 @@ describe('Looping Strategy Integration Tests', () => {
 
       // Health factor should be above 1.8 (with 18 decimals)
       const minHF = 18n * 10n ** 17n; // 1.8
-      expect(accountData.healthFactor).to.be.gte(minHF);
+      expect(Number(accountData.healthFactor)).to.be.gte(Number(minHF));
 
       console.log(`Health Factor: ${Number(accountData.healthFactor) / 1e18}`);
     });
@@ -105,7 +119,7 @@ describe('Looping Strategy Integration Tests', () => {
       const accountData = await getUserAccountData(userAddress);
 
       // In a healthy position, collateral should always be > debt
-      expect(accountData.totalCollateralBase).to.be.gt(accountData.totalDebtBase);
+      expect(Number(accountData.totalCollateralBase)).to.be.gt(Number(accountData.totalDebtBase));
     });
   });
 
@@ -115,8 +129,15 @@ describe('Looping Strategy Integration Tests', () => {
 
       const config = loadStrategyConfig();
 
-      // Should not throw
-      await expect(printStatus(config)).to.not.be.rejected;
+      // Should not throw - using try/catch for async function testing
+      let error: any = null;
+      try {
+        await printStatus(config);
+      } catch (e) {
+        error = e;
+      }
+
+      expect(error).to.be.null;
     });
   });
 

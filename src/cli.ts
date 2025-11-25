@@ -13,6 +13,7 @@
 import { ethers } from 'ethers';
 import { loadStrategyConfig, StrategyConfig } from '../config/strategy';
 import { openLoops, addLoops, delever, printStatus } from './strategy/loopingStrategy';
+import { getTokenAddress, getTokenDecimals } from './infrastructure/contracts';
 import { logger } from './utils/logger';
 
 /**
@@ -116,8 +117,12 @@ async function main(): Promise<void> {
           process.exit(1);
         }
 
-        // Convert to token units (assuming 6 decimals for USDC)
-        const amountBigInt = ethers.parseUnits(amountStr, 6);
+        // Get decimals for collateral token
+        const collateralAddress = getTokenAddress(config.collateralAsset);
+        const collateralDecimals = await getTokenDecimals(collateralAddress);
+
+        // Convert to token units with correct decimals
+        const amountBigInt = ethers.parseUnits(amountStr, collateralDecimals);
 
         logger.info(`Opening position with ${amount} ${config.collateralAsset}`);
 

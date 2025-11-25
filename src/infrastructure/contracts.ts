@@ -114,6 +114,15 @@ export async function getTokenInfo(
 }
 
 /**
+ * Get token decimals
+ */
+export async function getTokenDecimals(tokenAddress: string): Promise<number> {
+  const contract = getTokenContract(tokenAddress, false);
+  const decimals = await contract.decimals();
+  return Number(decimals);
+}
+
+/**
  * Get token balance for an address
  */
 export async function getTokenBalance(tokenAddress: string, userAddress: string): Promise<bigint> {

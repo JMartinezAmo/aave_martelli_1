@@ -6,7 +6,7 @@
 
 import { ethers } from 'ethers';
 import { StrategyConfig } from '../../config/strategy';
-import { getTokenAddress, getTokenBalance } from '../infrastructure/contracts';
+import { getTokenAddress, getTokenBalance, getTokenDecimals } from '../infrastructure/contracts';
 import { getSignerAddress } from '../infrastructure/provider';
 import {
   getUserAccountData,
@@ -54,16 +54,22 @@ export async function openLoops(
   const collateralAddress = getTokenAddress(config.collateralAsset);
   const debtAddress = getTokenAddress(config.debtAsset);
 
+  // Get token decimals
+  const [collateralDecimals, debtDecimals] = await Promise.all([
+    getTokenDecimals(collateralAddress),
+    getTokenDecimals(debtAddress),
+  ]);
+
   // Check initial balance
   const balance = await getTokenBalance(collateralAddress, userAddress);
   if (balance < initialCollateralAmount) {
     throw new Error(
-      `Insufficient balance. Have: ${formatAmount(balance, 6, 2)}, Need: ${formatAmount(initialCollateralAmount, 6, 2)}`
+      `Insufficient balance. Have: ${formatAmount(balance, collateralDecimals, 2)}, Need: ${formatAmount(initialCollateralAmount, collateralDecimals, 2)}`
     );
   }
 
   // Step 1: Initial supply
-  logger.info(`Step 1: Supplying ${formatAmount(initialCollateralAmount, 6, 2)} ${config.collateralAsset}`);
+  logger.info(`Step 1: Supplying ${formatAmount(initialCollateralAmount, collateralDecimals, 2)} ${config.collateralAsset}`);
   await supply(collateralAddress, initialCollateralAmount, config.dryRun);
 
   // Step 2: Check APYs and spread
@@ -125,10 +131,10 @@ export async function openLoops(
 
     // Convert base currency to debt token amount (assume 1:1 for stablecoins)
     // In production, use proper price feeds
-    const borrowAmount = safeBorrowBase * 10n ** 6n / 10n ** 8n; // Convert from 8 decimals to 6
+    const borrowAmount = safeBorrowBase * 10n ** BigInt(debtDecimals) / 10n ** 8n;
 
     // Borrow
-    logger.info(`Borrowing ${formatAmount(borrowAmount, 6, 2)} ${config.debtAsset}`);
+    logger.info(`Borrowing ${formatAmount(borrowAmount, debtDecimals, 2)} ${config.debtAsset}`);
     await borrow(debtAddress, borrowAmount, InterestRateMode.Variable, config.dryRun);
 
     // Swap debt token to collateral token
@@ -142,7 +148,7 @@ export async function openLoops(
     );
 
     // Supply the received collateral
-    logger.info(`Supplying ${formatAmount(amountReceived, 6, 2)} ${config.collateralAsset}`);
+    logger.info(`Supplying ${formatAmount(amountReceived, collateralDecimals, 2)} ${config.collateralAsset}`);
     await supply(collateralAddress, amountReceived, config.dryRun);
 
     loopsPerformed++;
@@ -187,6 +193,12 @@ export async function addLoops(config: StrategyConfig): Promise<LoopingResult> {
   const userAddress = await getSignerAddress();
   const collateralAddress = getTokenAddress(config.collateralAsset);
   const debtAddress = getTokenAddress(config.debtAsset);
+
+  // Get token decimals
+  const [collateralDecimals, debtDecimals] = await Promise.all([
+    getTokenDecimals(collateralAddress),
+    getTokenDecimals(debtAddress),
+  ]);
 
   // Check current position
   const accountData = await getUserAccountData(userAddress);
@@ -237,7 +249,7 @@ export async function addLoops(config: StrategyConfig): Promise<LoopingResult> {
       break;
     }
 
-    const borrowAmount = safeBorrowBase * 10n ** 6n / 10n ** 8n;
+    const borrowAmount = safeBorrowBase * 10n ** BigInt(debtDecimals) / 10n ** 8n;
 
     await borrow(debtAddress, borrowAmount, InterestRateMode.Variable, config.dryRun);
     const amountReceived = await swapWithSlippage(
@@ -282,6 +294,12 @@ export async function delever(
   const collateralAddress = getTokenAddress(config.collateralAsset);
   const debtAddress = getTokenAddress(config.debtAsset);
 
+  // Get token decimals
+  const [collateralDecimals, debtDecimals] = await Promise.all([
+    getTokenDecimals(collateralAddress),
+    getTokenDecimals(debtAddress),
+  ]);
+
   // Get current position
   const accountData = await getUserAccountData(userAddress);
 
@@ -306,10 +324,10 @@ export async function delever(
   logger.info(`Need to repay: $${formatAmount(repayAmountBase, 8, 2)}`);
 
   // Convert to token amount
-  const repayAmount = repayAmountBase * 10n ** 6n / 10n ** 8n;
+  const repayAmount = repayAmountBase * 10n ** BigInt(collateralDecimals) / 10n ** 8n;
 
   // Withdraw collateral to get funds for repayment
-  logger.info(`Withdrawing ${formatAmount(repayAmount, 6, 2)} ${config.collateralAsset}`);
+  logger.info(`Withdrawing ${formatAmount(repayAmount, collateralDecimals, 2)} ${config.collateralAsset}`);
   await withdraw(collateralAddress, repayAmount, config.dryRun);
 
   // Swap collateral to debt token
@@ -323,7 +341,7 @@ export async function delever(
   );
 
   // Repay debt
-  logger.info(`Repaying ${formatAmount(debtTokenReceived, 6, 2)} ${config.debtAsset}`);
+  logger.info(`Repaying ${formatAmount(debtTokenReceived, debtDecimals, 2)} ${config.debtAsset}`);
   await repay(debtAddress, debtTokenReceived, InterestRateMode.Variable, config.dryRun);
 
   // Final status
