@@ -119,7 +119,50 @@ export async function getTokenInfo(
 export async function getTokenDecimals(tokenAddress: string): Promise<number> {
   const contract = getTokenContract(tokenAddress, false);
   const decimals = await contract.decimals();
-  return Number(decimals);
+  const decimalsNum = Number(decimals);
+
+  // Validate decimals are reasonable
+  if (decimalsNum < 0 || decimalsNum > 18) {
+    throw new Error(`Token ${tokenAddress} has invalid decimals: ${decimalsNum}. Expected 0-18.`);
+  }
+
+  return decimalsNum;
+}
+
+/**
+ * Validate token configuration for strategy
+ * Ensures tokens have expected decimals and are proper ERC20 tokens
+ */
+export async function validateTokens(
+  collateralAddress: string,
+  debtAddress: string
+): Promise<{ collateralDecimals: number; debtDecimals: number }> {
+  try {
+    const [collateralInfo, debtInfo] = await Promise.all([
+      getTokenInfo(collateralAddress),
+      getTokenInfo(debtAddress),
+    ]);
+
+    // Log token information
+    console.log(`Collateral: ${collateralInfo.symbol} (${collateralInfo.name}), Decimals: ${collateralInfo.decimals}`);
+    console.log(`Debt: ${debtInfo.symbol} (${debtInfo.name}), Decimals: ${debtInfo.decimals}`);
+
+    // Warn if using non-standard decimals
+    if (collateralInfo.decimals !== 6 && collateralInfo.decimals !== 18) {
+      console.warn(`Warning: Collateral token has non-standard decimals: ${collateralInfo.decimals}`);
+    }
+
+    if (debtInfo.decimals !== 6 && debtInfo.decimals !== 18) {
+      console.warn(`Warning: Debt token has non-standard decimals: ${debtInfo.decimals}`);
+    }
+
+    return {
+      collateralDecimals: collateralInfo.decimals,
+      debtDecimals: debtInfo.decimals,
+    };
+  } catch (error: any) {
+    throw new Error(`Failed to validate tokens: ${error.message}`);
+  }
 }
 
 /**

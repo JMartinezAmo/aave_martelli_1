@@ -115,7 +115,8 @@ export function calculateNewHealthFactor(
 
   if (newDebt === 0n) {
     // No debt = infinite health factor
-    return 2n ** 256n - 1n; // Max uint256
+    // Use a very high but reasonable value instead of MAX_UINT256 to avoid overflows
+    return 1000n * 10n ** 18n; // 1000.0 - effectively infinite for practical purposes
   }
 
   // HF = (collateral * liquidationThreshold / 10000) / debt * 1e18

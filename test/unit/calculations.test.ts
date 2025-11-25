@@ -146,10 +146,11 @@ describe('Calculations', () => {
       expect(Number(newHF)).to.be.closeTo(Number(expectedHF), Number(5n * 10n ** 17n));
     });
 
-    it('should return max uint256 if no debt', () => {
+    it('should return very high HF if no debt', () => {
       const newHF = calculateNewHealthFactor(10000n, 0n, 0n, 8500n);
 
-      expect(Number(newHF)).to.equal(Number(2n ** 256n - 1n));
+      // Should return 1000.0 (effectively infinite)
+      expect(Number(newHF)).to.equal(Number(1000n * 10n ** 18n));
     });
   });
 

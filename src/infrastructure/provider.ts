@@ -31,14 +31,24 @@ export function getProvider(): ethers.JsonRpcProvider {
  */
 export function getSigner(): ethers.Wallet {
   if (!signerInstance) {
-    const privateKey = process.env.PRIVATE_KEY;
+    let privateKey = process.env.PRIVATE_KEY;
     if (!privateKey) {
       throw new Error('PRIVATE_KEY not set in environment variables');
     }
 
+    // Normalize private key: add 0x prefix if missing
+    if (!privateKey.startsWith('0x')) {
+      privateKey = '0x' + privateKey;
+    }
+
     // Validate private key format
-    if (!privateKey.startsWith('0x') || privateKey.length !== 66) {
-      throw new Error('PRIVATE_KEY must be in format 0x... with 64 hex chars');
+    if (privateKey.length !== 66) {
+      throw new Error(`PRIVATE_KEY must be 64 hex characters (got ${privateKey.length - 2}). Format: 0x followed by 64 hex chars.`);
+    }
+
+    // Validate it's valid hex
+    if (!/^0x[0-9a-fA-F]{64}$/.test(privateKey)) {
+      throw new Error('PRIVATE_KEY must contain only hexadecimal characters (0-9, a-f, A-F)');
     }
 
     const provider = getProvider();

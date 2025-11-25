@@ -85,6 +85,13 @@ export async function openLoops(
   logger.info(`${config.debtAsset} Borrow APY: ${debtAPYs.variableBorrowAPY.toFixed(2)}%`);
   logger.info(`Spread: ${formatBps(spreadBps)}`);
 
+  // Critical check: negative spread means guaranteed losses
+  if (spreadBps < 0) {
+    logger.error(`CRITICAL: Negative spread (${formatBps(spreadBps)})! Borrow rate exceeds supply rate.`);
+    logger.error('This would result in guaranteed losses. Aborting operation.');
+    throw new Error(`Negative spread detected: ${formatBps(spreadBps)}. Cannot proceed with looping.`);
+  }
+
   if (!isProfitableSpread(collateralAPYs.supplyAPY, debtAPYs.variableBorrowAPY, config.minSpreadBps)) {
     logger.warn(`Spread ${formatBps(spreadBps)} below minimum ${formatBps(config.minSpreadBps)}`);
     logger.warn('Not performing loops due to insufficient spread');
@@ -218,6 +225,12 @@ export async function addLoops(config: StrategyConfig): Promise<LoopingResult> {
   ]);
 
   const spreadBps = calculateSpreadBps(collateralAPYs.supplyAPY, debtAPYs.variableBorrowAPY);
+
+  // Critical check: negative spread means guaranteed losses
+  if (spreadBps < 0) {
+    logger.error(`CRITICAL: Negative spread (${formatBps(spreadBps)})! Borrow rate exceeds supply rate.`);
+    throw new Error(`Negative spread detected: ${formatBps(spreadBps)}. Cannot add loops.`);
+  }
 
   if (!isProfitableSpread(collateralAPYs.supplyAPY, debtAPYs.variableBorrowAPY, config.minSpreadBps)) {
     logger.warn(`Spread ${formatBps(spreadBps)} below minimum ${formatBps(config.minSpreadBps)}`);

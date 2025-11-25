@@ -56,8 +56,58 @@ export const defaultStrategyConfig: StrategyConfig = {
  * Load strategy config with overrides from environment or parameters
  */
 export function loadStrategyConfig(overrides?: Partial<StrategyConfig>): StrategyConfig {
-  return {
+  const config = {
     ...defaultStrategyConfig,
     ...overrides,
   };
+
+  // Validate configuration parameters
+  validateStrategyConfig(config);
+
+  return config;
+}
+
+/**
+ * Validate strategy configuration parameters
+ */
+function validateStrategyConfig(config: StrategyConfig): void {
+  // Validate numeric ranges
+  if (config.maxLoops < 1 || config.maxLoops > 10) {
+    throw new Error(`maxLoops must be between 1 and 10, got ${config.maxLoops}`);
+  }
+
+  if (config.minHealthFactor < 1.05) {
+    throw new Error(`minHealthFactor must be >= 1.05 (liquidation threshold), got ${config.minHealthFactor}`);
+  }
+
+  if (config.maxLtvUsage < 0 || config.maxLtvUsage > 100) {
+    throw new Error(`maxLtvUsage must be between 0 and 100, got ${config.maxLtvUsage}`);
+  }
+
+  if (config.minSpreadBps < 0) {
+    throw new Error(`minSpreadBps must be >= 0, got ${config.minSpreadBps}`);
+  }
+
+  // Validate slippage is reasonable (< 10%)
+  if (config.slippageBps < 0 || config.slippageBps > 1000) {
+    throw new Error(`slippageBps must be between 0 and 1000 (10%), got ${config.slippageBps}. High slippage increases risk of losses.`);
+  }
+
+  if (config.borrowSafetyMargin < 0.5 || config.borrowSafetyMargin > 1.0) {
+    throw new Error(`borrowSafetyMargin must be between 0.5 and 1.0, got ${config.borrowSafetyMargin}`);
+  }
+
+  // Validate assets are specified
+  if (!config.collateralAsset || config.collateralAsset.length === 0) {
+    throw new Error('collateralAsset must be specified');
+  }
+
+  if (!config.debtAsset || config.debtAsset.length === 0) {
+    throw new Error('debtAsset must be specified');
+  }
+
+  // Warn if collateral and debt are the same
+  if (config.collateralAsset === config.debtAsset) {
+    throw new Error('collateralAsset and debtAsset must be different');
+  }
 }
