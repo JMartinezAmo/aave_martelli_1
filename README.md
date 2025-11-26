@@ -10,6 +10,25 @@ This is an **EXPERIMENTAL** bot for educational purposes and small capital exper
 4. Re-depositing to create leverage (looping)
 5. Profiting from the spread between deposit APY and borrow APY
 
+## 📚 Guías Completas para Novatos
+
+Este proyecto incluye guías detalladas diseñadas para democratizar el acceso al carry trade en DeFi:
+
+- **[GUÍA DE DEPLOYMENT](./GUIA_DEPLOYMENT.md)** - Instalación paso a paso para principiantes
+  - Requisitos previos y herramientas necesarias
+  - Configuración completa del proyecto
+  - Verificación y troubleshooting
+  - Mejores prácticas de seguridad
+
+- **[GUÍA DE USO](./GUIA_USO.md)** - Cómo usar el bot efectivamente
+  - Conceptos fundamentales de carry trade
+  - Interpretación de APYs, spread y health factor
+  - Estrategias para principiantes
+  - Gestión de riesgos y ejemplos prácticos
+  - Escenarios de emergencia
+
+**¿Eres novato?** Empieza por la [Guía de Deployment](./GUIA_DEPLOYMENT.md) y luego continúa con la [Guía de Uso](./GUIA_USO.md).
+
 ## ⚠️ CRITICAL WARNINGS
 
 **DO NOT USE WITH LARGE CAPITAL**
